@@ -1,6 +1,7 @@
-import React from 'react'
-import './App.css'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import React from 'react';
+import './App.css';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { CartProvider } from './contexts/CartContext';
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import ProductsPage from './pages/ProductsPage'
@@ -66,6 +67,7 @@ function AgentRoute({ children }: { children: React.ReactElement }) {
 
 function App() {
   return (
+    <CartProvider>
     <Routes>
       <Route path="/intranet/login" element={<AdminLoginPage />} />
       <Route
@@ -198,7 +200,8 @@ function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
+    </CartProvider>
+  );
 }
 
-export default App
+export default App;

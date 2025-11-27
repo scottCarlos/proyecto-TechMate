@@ -57,7 +57,8 @@ CREATE TABLE "USUARIOS" (
   "fecha_registro" date NOT NULL DEFAULT (CURRENT_DATE),
   "rol" user_role NOT NULL DEFAULT 'Cliente',
   "activo" boolean NOT NULL DEFAULT true,
-  "ultima_sesion" timestamp
+  "ultima_sesion" timestamp,
+  "url_img" varchar(255)
 );
 
 CREATE TABLE "DIRECCIONES" (
@@ -68,7 +69,8 @@ CREATE TABLE "DIRECCIONES" (
   "estado" varchar(100) NOT NULL,
   "codigo_postal" varchar(20) NOT NULL,
   "pais" varchar(100) NOT NULL DEFAULT 'Perú',
-  "es_principal" boolean DEFAULT false
+  "es_principal" boolean DEFAULT false,
+  "nombre_direccion" varchar(100)
 );
 
 CREATE TABLE "CATEGORIAS" (
