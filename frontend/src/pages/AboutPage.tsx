@@ -1,4 +1,20 @@
-import type { FC } from 'react'
+import type { FC } from 'react';
+
+export const STORE_ADDRESS = {
+  name: 'Tienda Principal Miraflores',
+  street: 'Av. José Larco 123',
+  city: 'Miraflores',
+  state: 'Lima',
+  postal_code: '15074',
+  country: 'Perú',
+  phone: '+51 123 456 789',
+  email: 'tienda@techmate.com',
+  schedule: 'Lunes a Sábado: 9:00 AM - 9:00 PM',
+  coordinates: {
+    lat: -12.1194,
+    lng: -77.0282
+  }
+};
 
 const AboutPage: FC = () => {
   return (
@@ -166,6 +182,43 @@ const AboutPage: FC = () => {
                           el valor de nuestros laptops, smartphones y soluciones de almacenamiento de una manera clara y
                           emocionante.
                         </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Ubicación de la Tienda */}
+                <section className="mt-8 md:mt-10">
+                  <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-1 sm:px-0 pb-3">
+                    Nuestra Tienda Principal
+                  </h2>
+                  <div className="bg-card-light dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-lg p-6 md:p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div>
+                        <h3 className="text-lg font-bold mb-4">{STORE_ADDRESS.name}</h3>
+                        <div className="space-y-2 text-sm text-text-muted-light dark:text-text-muted-dark">
+                          <p>{STORE_ADDRESS.street}</p>
+                          <p>{STORE_ADDRESS.city}, {STORE_ADDRESS.state} {STORE_ADDRESS.postal_code}</p>
+                          <p>{STORE_ADDRESS.country}</p>
+                          <p className="mt-4">
+                            <span className="font-medium">Teléfono:</span> {STORE_ADDRESS.phone}
+                          </p>
+                          <p>
+                            <span className="font-medium">Email:</span> {STORE_ADDRESS.email}
+                          </p>
+                          <p className="mt-2">{STORE_ADDRESS.schedule}</p>
+                        </div>
+                      </div>
+                      <div className="aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          style={{ border: 0 }}
+                          src={`https://www.google.com/maps/embed/v1/place?key=YOUR_GOOGLE_MAPS_API_KEY&q=${STORE_ADDRESS.coordinates.lat},${STORE_ADDRESS.coordinates.lng}&zoom=15`}
+                          allowFullScreen
+                          title="Ubicación de la tienda"
+                        ></iframe>
                       </div>
                     </div>
                   </div>

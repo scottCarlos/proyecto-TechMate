@@ -8,6 +8,7 @@ export interface CartProduct {
   stock?: number | null
   sku?: string | null
   marca?: string | null
+  imagen?: string | null
 }
 
 export interface CartItem {
@@ -75,5 +76,20 @@ export async function removeFromCart(token: string, id_producto: number): Promis
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.message || 'No se pudo eliminar del carrito')
+  }
+}
+
+export async function clearCart(token: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/cart`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'No se pudo vaciar el carrito');
   }
 }

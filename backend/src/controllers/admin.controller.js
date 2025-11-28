@@ -1,5 +1,19 @@
 import bcrypt from 'bcrypt'
-import { query } from '../database/connection.js'
+import pkg from 'pg'
+const { Pool } = pkg
+import { config } from '../config/configuration.js'
+
+// Crear un nuevo pool de conexiones para este controlador
+const pool = new Pool({
+  host: config.db.host,
+  port: config.db.port,
+  user: config.db.user,
+  password: config.db.password,
+  database: config.db.database,
+})
+
+// Función auxiliar para ejecutar consultas con el pool
+export const query = (text, params) => pool.query(text, params)
 
 const ensureAdminOrAgent = (req) => {
   const role = req.user?.rol
@@ -12,10 +26,15 @@ const ensureAdminOrAgent = (req) => {
 }
 
 export const createPromotion = async (req, res) => {
+  const client = await pool.connect();
   try {
-    const role = req.user?.rol
+    // Iniciar transacción
+    await client.query('BEGIN');
+
+    const role = req.user?.rol;
     if (role !== 'Admin') {
-      return res.status(403).json({ message: 'Solo un usuario Admin puede crear promociones' })
+      await client.release();
+      return res.status(403).json({ message: 'Solo un usuario Admin puede crear promociones' });
     }
 
     const {
@@ -28,58 +47,236 @@ export const createPromotion = async (req, res) => {
       usos_maximos,
       activa = true,
       productIds,
-    } = req.body
+    } = req.body;
 
+    // Validaciones básicas
     if (!codigo || !tipo_descuento || !valor_descuento || !fecha_inicio || !fecha_fin) {
-      return res.status(400).json({ message: 'Código, tipo de descuento, valor y fechas son obligatorios' })
+      await client.release();
+      return res.status(400).json({ message: 'Código, tipo de descuento, valor y fechas son obligatorios' });
     }
 
     if (!['Porcentaje', 'Monto_Fijo'].includes(tipo_descuento)) {
-      return res.status(400).json({ message: 'Tipo de descuento inválido' })
+      await client.release();
+      return res.status(400).json({ message: 'Tipo de descuento inválido' });
     }
 
-    const valor = Number(valor_descuento)
+    const valor = Number(valor_descuento);
     if (!Number.isFinite(valor) || valor <= 0) {
-      return res.status(400).json({ message: 'El valor de descuento debe ser mayor a 0' })
+      await client.release();
+      return res.status(400).json({ message: 'El valor de descuento debe ser mayor a 0' });
     }
 
+    // Validar fechas
+    const fechaInicio = new Date(fecha_inicio);
+    const fechaFin = new Date(fecha_fin);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    if (fechaInicio < hoy) {
+      await client.release();
+      return res.status(400).json({ message: 'La fecha de inicio no puede ser anterior a hoy' });
+    }
+
+    if (fechaFin <= fechaInicio) {
+      await client.release();
+      return res.status(400).json({ message: 'La fecha de fin debe ser posterior a la fecha de inicio' });
+    }
+
+    // Procesar IDs de productos
     const productos = Array.isArray(productIds)
       ? [...new Set(productIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))]
-      : []
+      : [];
+      
     if (productos.length === 0) {
-      return res.status(400).json({ message: 'Selecciona al menos un producto para la promoción' })
+      await client.release();
+      return res.status(400).json({ message: 'Selecciona al menos un producto para la promoción' });
     }
 
-    const insertPromo = await query(
-      `INSERT INTO "PROMOCIONES" (
-         "codigo",
-         "descripcion",
-         "tipo_descuento",
-         "valor_descuento",
-         "fecha_inicio",
-         "fecha_fin",
-         "usos_maximos",
-         "activa"
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING "id_promocion", "codigo", "descripcion", "tipo_descuento", "valor_descuento", "fecha_inicio", "fecha_fin", "usos_maximos", "usos_actuales", "activa"`,
-      [codigo, descripcion ?? null, tipo_descuento, valor, fecha_inicio, fecha_fin, usos_maximos ?? null, Boolean(activa)],
-    )
+    // 1. Verificar si los productos ya tienen promociones activas
+    // Primero, asegurémonos de que todos los productos existan
+    const productosExistentes = await client.query(
+      `SELECT id_producto, nombre FROM PRODUCTOS WHERE id_producto = ANY($1::int[])`,
+      [productos]
+    );
+    
+    if (productosExistentes.rows.length !== productos.length) {
+      const idsExistentes = new Set(productosExistentes.rows.map(p => p.id_producto));
+      const idsNoExistentes = productos.filter(id => !idsExistentes.has(id));
+      
+      return res.status(404).json({
+        message: 'Algunos productos no existen',
+        productosNoEncontrados: idsNoExistentes
+      });
+    }
+    const placeholders = productos.map((_, i) => `$${i + 1}`).join(',');
+    const checkPromosQuery = `
+      SELECT p.id_producto, p.nombre, pr.id_promocion, pr.codigo, pr.fecha_fin
+      FROM PRODUCTOS p
+      JOIN PRODUCTOS_PROMOCIONES pp ON p.id_producto = pp.id_producto
+      JOIN PROMOCIONES pr ON pp.id_promocion = pr.id_promocion
+      WHERE p.id_producto IN (${placeholders})
+      AND pr.activa = true
+      AND pr.fecha_fin >= CURRENT_DATE
+    `;
 
-    const promo = insertPromo.rows[0]
+    const checkResult = await client.query(checkPromosQuery, productos);
+    
+    if (checkResult.rows.length > 0) {
+      const productosConPromo = checkResult.rows.map(p => ({
+        id: p.id_producto,
+        nombre: p.nombre,
+        promocion: p.codigo,
+        fecha_fin: p.fecha_fin
+      }));
+      
+      await client.release();
+      return res.status(400).json({
+        message: 'Algunos productos ya tienen promociones activas',
+        productosConPromo
+      });
+    }
 
+    // 2. Insertar la promoción
+    const insertPromoQuery = `
+      INSERT INTO "PROMOCIONES" (
+        "codigo",
+        "descripcion",
+        "tipo_descuento",
+        "valor_descuento",
+        "fecha_inicio",
+        "fecha_fin",
+        "usos_maximos",
+        "activa",
+        "usos_actuales"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
+      RETURNING "id_promocion", "codigo", "descripcion", "tipo_descuento", 
+                "valor_descuento", "fecha_inicio", "fecha_fin", 
+                "usos_maximos", "usos_actuales", "activa"
+    `;
+
+    const insertPromo = await client.query(
+      insertPromoQuery,
+      [
+        codigo,
+        descripcion || null,
+        tipo_descuento,
+        valor,
+        fecha_inicio,
+        fecha_fin,
+        usos_maximos || null,
+        activa
+      ]
+    );
+
+    const promo = insertPromo.rows[0];
+    const idPromocion = promo.id_promocion;
+
+    // 3. Asociar productos a la promoción y actualizar precios
     for (const idProducto of productos) {
-      await query(
+      // Insertar en PRODUCTOS_PROMOCIONES
+      await client.query(
         `INSERT INTO "PRODUCTOS_PROMOCIONES" ("id_producto", "id_promocion")
          VALUES ($1, $2)
          ON CONFLICT ("id_producto", "id_promocion") DO NOTHING`,
-        [idProducto, promo.id_promocion],
-      )
-    }
+        [idProducto, idPromocion]
+      );
 
-    return res.status(201).json(promo)
+      // Obtener el precio actual del producto
+      const productoResult = await client.query(
+        'SELECT precio FROM PRODUCTOS WHERE id_producto = $1',
+        [idProducto]
+      );
+      
+      if (productoResult.rows.length === 0) continue;
+      
+      const precioActual = parseFloat(productoResult.rows[0].precio);
+      let nuevoPrecio = precioActual;
+      
+      // Calcular nuevo precio según el tipo de descuento
+      if (tipo_descuento === 'Porcentaje') {
+        const descuento = (precioActual * valor) / 100;
+        nuevoPrecio = Math.max(0, precioActual - descuento); // Precio no puede ser negativo
+      } else {
+        // Monto fijo
+        nuevoPrecio = Math.max(0, precioActual - valor); // Precio no puede ser negativo
+      }
+      
+      // Actualizar el precio en la tabla PRODUCTOS
+      await client.query(
+        'UPDATE PRODUCTOS SET precio = $1 WHERE id_producto = $2',
+        [nuevoPrecio.toFixed(2), idProducto]
+      );
+      
+      // Registrar en el historial de precios
+      await client.query(
+        `INSERT INTO HISTORIAL_PRECIOS (
+          id_producto, 
+          precio_anterior, 
+          precio_nuevo, 
+          fecha_cambio, 
+          motivo, 
+          id_usuario
+        ) VALUES ($1, $2, $3, NOW(), $4, $5)`,
+        [
+          idProducto,
+          precioActual,
+          nuevoPrecio,
+          `Aplicación de promoción: ${codigo}`,
+          req.user?.id_usuario || null
+        ]
+      );
+    }
+    
+    // Confirmar la transacción
+    await client.query('COMMIT');
+    
+    // Obtener la promoción con los productos asociados para la respuesta
+    const promocionCompleta = await client.query(
+      `SELECT p.*, 
+              json_agg(pr.*) as productos
+       FROM PROMOCIONES p
+       LEFT JOIN PRODUCTOS_PROMOCIONES pp ON p.id_promocion = pp.id_promocion
+       LEFT JOIN (
+         SELECT id_producto, nombre, precio, imagen_principal 
+         FROM PRODUCTOS
+       ) pr ON pp.id_producto = pr.id_producto
+       WHERE p.id_promocion = $1
+       GROUP BY p.id_promocion`,
+      [idPromocion]
+    );
+
+    // Liberar el cliente de la pool
+    await client.release();
+    
+    return res.status(201).json({
+      ...promo,
+      productos: promocionCompleta.rows[0]?.productos || []
+    });
   } catch (error) {
-    console.error('Error en createPromotion:', error)
-    return res.status(500).json({ message: 'Error al crear la promoción' })
+    // Revertir la transacción en caso de error
+    await client.query('ROLLBACK');
+    console.error('Error en createPromotion:', error);
+    
+    // Manejar errores de restricción única
+    if (error.code === '23505') { // Código de violación de restricción única
+      return res.status(400).json({ 
+        message: 'Ya existe una promoción con este código' 
+      });
+    }
+    
+    return res.status(500).json({ 
+      message: 'Error al crear la promoción',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    // Asegurarse de liberar el cliente en caso de error
+    if (client) {
+      try {
+        await client.release();
+      } catch (e) {
+        console.error('Error al liberar el cliente de la pool:', e);
+      }
+    }
   }
 }
 

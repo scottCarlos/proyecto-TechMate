@@ -84,9 +84,16 @@ function Layout({ children }: PropsWithChildren) {
         })
       }
     } finally {
+      // Clear auth and cart from localStorage
       localStorage.removeItem('auth')
+      localStorage.removeItem('cart')
+      localStorage.removeItem('carItems') // Clean up old key if it exists
+      
+      // Clear auth user state
       setAuthUser(null)
       setIsProfileOpen(false)
+      
+      // Redirect to home
       navigate('/', { replace: true })
     }
   }

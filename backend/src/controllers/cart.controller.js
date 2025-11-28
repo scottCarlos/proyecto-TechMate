@@ -2,18 +2,35 @@ import { query } from '../database/connection.js'
 
 export const getMyCart = async (req, res) => {
   try {
+    console.log('=== INICIO getMyCart ===');
+    console.log('Headers:', req.headers);
+    console.log('Usuario en req.user:', req.user);
+    
     const userId = req.user?.id
-    if (!userId) return res.status(401).json({ message: 'No autorizado' })
+    console.log('ID de usuario extraído:', userId);
+    
+    if (!userId) {
+      console.log('Error: No se encontró userId en req.user');
+      return res.status(401).json({ message: 'No autorizado' });
+    }
 
-    const result = await query(
-      `SELECT c."id_carrito", c."id_producto", c."cantidad", c."fecha_agregado",
-              p."id_producto" AS id, p."nombre", p."descripcion", p."precio", p."stock", p."sku", p."marca"
-       FROM "CARRITO" c
-       JOIN "PRODUCTOS" p ON p."id_producto" = c."id_producto"
-       WHERE c."id_usuario" = $1
-       ORDER BY c."fecha_agregado" DESC`,
-      [userId],
-    )
+    console.log('Ejecutando consulta SQL para el usuario ID:', userId);
+    const queryText = `
+      SELECT c."id_carrito", c."id_producto", c."cantidad", c."fecha_agregado",
+             p."id_producto" AS id, p."nombre", p."descripcion", p."precio", 
+             p."stock", p."sku", p."marca"
+      FROM "CARRITO" c
+      JOIN "PRODUCTOS" p ON p."id_producto" = c."id_producto"
+      WHERE c."id_usuario" = $1
+      ORDER BY c."fecha_agregado" DESC
+    `;
+    
+    console.log('Query SQL:', queryText);
+    console.log('Parámetros:', [userId]);
+    
+    const result = await query(queryText, [userId]);
+    console.log('Resultado de la consulta (filas encontradas):', result.rows.length);
+    console.log('Primeras 3 filas de resultados:', result.rows.slice(0, 3));
 
     const items = result.rows.map((row) => ({
       id_carrito: row.id_carrito,
@@ -31,10 +48,15 @@ export const getMyCart = async (req, res) => {
       },
     }))
 
+    console.log('Enviando respuesta con', items.length, 'ítems');
     return res.json(items)
   } catch (error) {
-    console.error('Error al obtener carrito:', error)
-    return res.status(500).json({ message: 'Error al obtener carrito' })
+    console.error('Error al obtener carrito:', error);
+    console.error('Stack trace:', error.stack);
+    return res.status(500).json({ 
+      message: 'Error al obtener carrito',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 }
 
@@ -110,5 +132,22 @@ export const removeFromCart = async (req, res) => {
   } catch (error) {
     console.error('Error al eliminar del carrito:', error)
     return res.status(500).json({ message: 'Error al eliminar del carrito' })
+  }
+}
+
+export const clearCart = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'No autorizado' });
+
+    await query('DELETE FROM "CARRITO" WHERE "id_usuario" = $1', [userId]);
+
+    return res.json({ message: 'Carrito vaciado correctamente' });
+  } catch (error) {
+    console.error('Error al vaciar el carrito:', error);
+    return res.status(500).json({ 
+      message: 'No se pudo vaciar el carrito',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }

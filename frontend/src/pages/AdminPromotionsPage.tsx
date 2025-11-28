@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react'
-import type { Promotion, CreatePromotionInput } from '../services/promotions'
-import { getAllPromotions, createPromotionApi } from '../services/promotions'
-import type { Product } from '../services/products'
-import { getProducts } from '../services/products'
-import type { AuthUser } from '../services/auth'
+import React, { useEffect, useState } from 'react';
+import type { Promotion, CreatePromotionInput } from '../services/promotions';
+import { getAllPromotions, createPromotionApi } from '../services/promotions';
+import type { Product } from '../services/products';
+import { getProducts } from '../services/products';
+import type { AuthUser } from '../services/auth';
+import ProductSelectionModal from '../components/ProductSelectionModal';
 
 const AdminPromotionsPage: React.FC = () => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
@@ -11,8 +12,9 @@ const AdminPromotionsPage: React.FC = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
 
   const [form, setForm] = useState<CreatePromotionInput>({
     codigo: '',
@@ -70,15 +72,31 @@ const AdminPromotionsPage: React.FC = () => {
     void loadData()
   }, [token])
 
-  const toggleProductSelected = (id: number) => {
-    setForm((prev) => {
-      const already = prev.productIds.includes(id)
-      return {
-        ...prev,
-        productIds: already ? prev.productIds.filter((pid) => pid !== id) : [...prev.productIds, id],
-      }
-    })
-  }
+  const handleOpenProductModal = () => {
+    setShowProductModal(true);
+  };
+
+  const handleCloseProductModal = () => {
+    setShowProductModal(false);
+  };
+
+  const handleProductSelection = (selectedIds: number[]) => {
+    setForm((prev) => ({
+      ...prev,
+      productIds: selectedIds,
+    }));
+  };
+
+  const getSelectedProducts = () => {
+    return products.filter((p) => form.productIds.includes(p.id));
+  };
+
+  const removeSelectedProduct = (id: number) => {
+    setForm((prev) => ({
+      ...prev,
+      productIds: prev.productIds.filter((pid) => pid !== id),
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -301,30 +319,81 @@ const AdminPromotionsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1">Productos</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-medium">Productos</label>
+                <span className="text-xs text-gray-500">
+                  {form.productIds.length} {form.productIds.length === 1 ? 'producto' : 'productos'} seleccionados
+                </span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={handleOpenProductModal}
+                className="w-full mb-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                {form.productIds.length > 0 ? 'Editar productos' : 'Seleccionar productos'}
+              </button>
+              
               {loadingProducts ? (
                 <p className="text-xs text-gray-500 dark:text-gray-400">Cargando productos...</p>
+              ) : form.productIds.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {getSelectedProducts().map((product) => (
+                    <div 
+                      key={product.id} 
+                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="flex-shrink-0 w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded-md overflow-hidden">
+                          {product.imagen_principal ? (
+                            <img 
+                              src={product.imagen_principal} 
+                              alt={product.nombre}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <span className="material-symbols-outlined text-sm">image</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{product.nombre}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            S/ {parseFloat(product.precio).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSelectedProduct(product.id);
+                        }}
+                        className="text-gray-400 hover:text-red-500 p-1"
+                      >
+                        <span className="material-symbols-outlined text-base">close</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1 text-xs">
-                  {products.length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400 text-xs">No hay productos disponibles.</p>
-                  ) : (
-                    products.map((p) => (
-                      <label key={p.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={form.productIds.includes(p.id)}
-                          onChange={() => toggleProductSelected(p.id)}
-                          className="h-3 w-3 rounded border-gray-300 dark:border-gray-700 text-primary focus:ring-primary"
-                        />
-                        <span className="truncate" title={p.nombre}>
-                          {p.nombre} (ID {p.id})
-                        </span>
-                      </label>
-                    ))
-                  )}
+                <div className="text-center py-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    No se han seleccionado productos
+                  </p>
                 </div>
               )}
+              
+              <ProductSelectionModal
+                isOpen={showProductModal}
+                products={products}
+                selectedProductIds={form.productIds}
+                onClose={handleCloseProductModal}
+                onConfirm={handleProductSelection}
+                title="Seleccionar productos para la promoción"
+              />
             </div>
 
             <button

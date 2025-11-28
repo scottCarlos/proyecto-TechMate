@@ -13,7 +13,7 @@ export interface Address {
 }
 
 export async function getMyAddress(token: string): Promise<Address | null> {
-  const res = await fetch(`${API_URL}/api/addresses/me`, {
+  const res = await fetch(`${API_URL}/api/address/me`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

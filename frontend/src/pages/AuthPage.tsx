@@ -1,13 +1,27 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useCart } from '../contexts/CartContext'
 import type { AuthUser } from '../services/auth'
 import AuthForm from '../components/AuthForm'
 
 function AuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { syncCartWithBackend } = useCart()
 
-  const handleAuthSuccess = (authUser: AuthUser, authToken: string) => {
+  const handleAuthSuccess = async (authUser: AuthUser, authToken: string) => {
+    // Save auth data to localStorage
     localStorage.setItem('auth', JSON.stringify({ user: authUser, token: authToken }))
+    
+    // Sync cart with backend if user has items in localStorage
+    if (syncCartWithBackend) {
+      try {
+        await syncCartWithBackend()
+      } catch (error) {
+        console.error('Error syncing cart:', error)
+        // Continue with login even if cart sync fails
+      }
+    }
+    
     const state = location.state as { from?: string } | null
     const from = state?.from || '/'
     navigate(from, { replace: true })
