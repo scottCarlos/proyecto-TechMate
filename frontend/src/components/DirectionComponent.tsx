@@ -4,10 +4,16 @@ import type { Address } from '../services/address.service';
 import { useAuth } from '../contexts/AuthContext';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { STORE_ADDRESS } from '../pages/AboutPage';
 
-interface NewAddress extends Omit<Address, 'id' | 'created_at' | 'updated_at' | 'is_default'> {
-  is_default: boolean;
+interface NewAddress {
+  name: string; // nombre_direccion
+  street: string; // calle
+  city: string; // ciudad
+  state: string; // estado
+  postal_code: string; // codigo_postal
+  country: string; // pais
+  is_default: boolean; // es_principal
+  type: 'home' | 'office' | 'other';
 }
 
 interface DirectionComponentProps {
@@ -18,14 +24,14 @@ interface DirectionComponentProps {
 type DeliveryOption = 'main' | 'other' | 'pickup';
 
 const initialNewAddress: NewAddress = {
-  name: '',
-  street: '',
-  city: '',
-  state: '',
-  postal_code: '',
-  country: 'Perú',
+  name: '', // nombre_direccion
+  street: '', // calle
+  city: '', // ciudad
+  state: '', // estado
+  postal_code: '', // codigo_postal
+  country: 'Perú', // pais
   type: 'home',
-  is_default: false
+  is_default: false // es_principal
 };
 
 const DirectionComponent = ({ onAddressSelected }: DirectionComponentProps) => {
@@ -109,26 +115,49 @@ const DirectionComponent = ({ onAddressSelected }: DirectionComponentProps) => {
 
   const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !newAddress.name || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.postal_code) return;
+    
+    // Validar campos requeridos
+    if (!token || !newAddress.street || !newAddress.city || !newAddress.postal_code) {
+      message.error('Por favor complete todos los campos requeridos');
+      return;
+    }
 
     try {
       setIsLoading(true);
-      const addedAddress = await addAddress(token, newAddress);
       
+      // Preparar los datos para enviar al backend
+      const addressToSend = {
+        name: newAddress.name,
+        street: newAddress.street,
+        city: newAddress.city,
+        state: newAddress.state,
+        postal_code: newAddress.postal_code,
+        country: newAddress.country,
+        is_default: newAddress.is_default,
+        type: newAddress.type
+      };
+      
+      console.log('Enviando dirección al servidor:', addressToSend);
+      
+      const addedAddress = await addAddress(token, addressToSend);
+      
+      // Actualizar la lista de direcciones
       setAddresses(prev => {
         const updated = [...prev, addedAddress];
-        // If this is the first address or marked as default, select it
+        // Si es la primera dirección o está marcada como predeterminada, seleccionarla
         if (addedAddress.is_default || updated.length === 1) {
           setSelectedAddress(addedAddress.id);
+          onAddressSelected(addedAddress.id);
         }
         return updated;
       });
 
+      // Reiniciar el formulario
       setNewAddress(initialNewAddress);
       setShowAddAddressForm(false);
       message.success('Dirección guardada correctamente');
     } catch (err) {
-      console.error('Error adding address:', err);
+      console.error('Error al guardar la dirección:', err);
       message.error(err instanceof Error ? err.message : 'Error al guardar la dirección');
     } finally {
       setIsLoading(false);
@@ -405,7 +434,8 @@ const DirectionComponent = ({ onAddressSelected }: DirectionComponentProps) => {
                       </label>
                     </div>
                     <div className="flex space-x-2">
-                      <button
+                      <button 
+                        style={{color: "#253"}}
                         type="button"
                         onClick={() => setShowAddAddressForm(false)}
                         className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"

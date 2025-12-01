@@ -185,12 +185,14 @@ function DashboardPage() {
     setSuccess(null)
     try {
       const updatedAddress = await upsertMyAddress(token, {
-        nombre_direccion: address.nombre_direccion ?? '',
-        calle: address.calle,
-        ciudad: address.ciudad,
-        estado: address.estado || '',
-        codigo_postal: address.codigo_postal,
-        pais: address.pais || 'Perú',
+        name: address.nombre_direccion ?? '',
+        street: address.calle,
+        city: address.ciudad,
+        state: address.estado || 'no aplica',
+        postal_code: address.codigo_postal,
+        country: 'Perú',
+        is_default: true,
+        type: 'home'
       })
       setAddress(updatedAddress)
       setSuccess('Dirección guardada correctamente')
@@ -545,7 +547,7 @@ function DashboardPage() {
                     Nombre de la dirección (ej: Casa, Trabajo)
                   </p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder-text-gray-400 px-4 text-base font-normal leading-normal"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 text-base font-normal leading-normal"
                     type="text"
                     placeholder="Casa, Trabajo, Departamento, etc."
                     value={address?.nombre_direccion ?? ''}
@@ -593,7 +595,7 @@ function DashboardPage() {
                     Ciudad
                   </p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder-text-gray-400 px-4 text-base font-normal leading-normal"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 text-base font-normal leading-normal"
                     type="text"
                     placeholder="Ciudad"
                     value={address?.ciudad ?? ''}
@@ -617,7 +619,7 @@ function DashboardPage() {
                     Código postal
                   </p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder-text-gray-400 px-4 text-base font-normal leading-normal"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 text-base font-normal leading-normal"
                     type="text"
                     placeholder="00000"
                     value={address?.codigo_postal ?? ''}
@@ -641,7 +643,7 @@ function DashboardPage() {
                     País
                   </p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder-text-gray-400 px-4 text-base font-normal leading-normal"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-white/20 bg-background-light dark:bg-background-dark h-12 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 text-base font-normal leading-normal"
                     type="text"
                     value={address?.pais ?? 'Perú'}
                     readOnly

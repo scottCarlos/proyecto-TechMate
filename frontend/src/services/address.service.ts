@@ -56,7 +56,7 @@ export const getMyAddresses = async (token: string): Promise<Address[]> => {
       return [];
     });
     
-    console.log('Datos recibidos:', data);
+    console.log('Datos recibidos del backend:', data);
     
     // Asegurarse de que siempre devolvamos un array
     if (!Array.isArray(data)) {
@@ -64,7 +64,20 @@ export const getMyAddresses = async (token: string): Promise<Address[]> => {
       return [];
     }
 
-    return data;
+    // Mapear los datos del backend al formato del frontend
+    return data.map((address: any) => ({
+      id: address.id.toString(),
+      name: address.name_direction || '',
+      street: address.street,
+      city: address.city,
+      state: address.state || '',
+      postal_code: address.postalCode,
+      country: address.country,
+      is_default: address.isDefault || false,
+      type: 'home', // Valor por defecto
+      created_at: address.created_at,
+      updated_at: address.updated_at
+    }));
   } catch (error) {
     console.error('Error en getMyAddresses:', error);
     // En caso de error, devolver un array vacío en lugar de lanzar el error
@@ -80,22 +93,53 @@ export const addAddress = async (token: string, address: Omit<Address, 'id' | 'c
       throw new Error('No se proporcionó token de autenticación');
     }
 
+    // Mapear los campos del frontend a los que espera el backend
+    const requestBody = {
+      name: address.name,
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      postal_code: address.postal_code,
+      country: address.country,
+      is_default: address.is_default,
+      type: address.type || 'home' // Asegurarse de que siempre se envíe un tipo
+    };
+
+    console.log('Enviando datos al backend:', requestBody);
     console.log('Realizando petición a:', `${API_URL}/api/addresses/me`);
+    
     const response = await fetch(`${API_URL}/api/addresses/me`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(address),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('Error en la respuesta del servidor:', errorData);
       throw new Error(errorData.message || 'Error al guardar la dirección');
     }
 
-    return await response.json();
+    const responseData = await response.json();
+    console.log('Respuesta del servidor:', responseData);
+    
+    // Mapear la respuesta del backend al formato que espera el frontend
+    return {
+      id: responseData.id_direccion.toString(),
+      name: responseData.nombre_direccion || '',
+      street: responseData.calle,
+      city: responseData.ciudad,
+      state: responseData.estado || '',
+      postal_code: responseData.codigo_postal,
+      country: responseData.pais,
+      is_default: responseData.es_principal || false,
+      type: 'home', // Valor por defecto
+      created_at: responseData.created_at,
+      updated_at: responseData.updated_at
+    };
   } catch (error) {
     console.error('Error adding address:', error);
     throw error;

@@ -28,10 +28,6 @@ type PaymentMethod = 'plin' | 'yape' | 'card' | 'paypal' | null;
 
 interface CheckoutPageProps {}
 
-interface DirectionComponentProps {
-  onAddressSelect: (addressId: string) => void;
-}
-
 const CheckoutPage: FC<CheckoutPageProps> = () => {
   const navigate = useNavigate()
   const [token, setToken] = useState<string | null>(null)

@@ -278,7 +278,7 @@ function AuthForm({ onAuthSuccess }: AuthFormProps) {
               type="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
-              className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text_WHITE focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-[#3b4354] bg-gray-50 dark:bg-[#101622] h-11 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-3 text-sm sm:text-base font-normal leading-normal"
+              className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-[#3b4354] bg-gray-50 dark:bg-[#101622] h-11 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-3 text-sm sm:text-base font-normal leading-normal"
               placeholder="Número de contacto"
             />
           </label>
