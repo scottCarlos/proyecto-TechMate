@@ -184,19 +184,37 @@ const CheckoutPage: FC<CheckoutPageProps> = () => {
   };
 
   useEffect(() => {
-    const raw = localStorage.getItem('auth')
-    if (!raw) return
-    try {
-      const parsed = JSON.parse(raw) as StoredAuth
-      if (parsed.token) setToken(parsed.token)
-    } catch {
-      // ignore
+    const loadAuth = () => {
+      const raw = localStorage.getItem('auth')
+      if (!raw) {
+        console.log('No se encontró información de autenticación en localStorage')
+        navigate('/auth')
+        return
+      }
+      try {
+        const parsed = JSON.parse(raw) as StoredAuth
+        if (parsed.token) {
+          console.log('Token encontrado en localStorage')
+          setToken(parsed.token)
+        } else {
+          console.log('No hay token en la información de autenticación')
+          navigate('/auth')
+        }
+      } catch (error) {
+        console.error('Error al analizar la información de autenticación:', error)
+        navigate('/auth')
+      }
     }
-  }, [])
+    
+    loadAuth()
+  }, [navigate])
 
   useEffect(() => {
     const load = async () => {
-      if (!token) return
+      if (!token) {
+        console.log('No hay token disponible para cargar el carrito')
+        return
+      }
       setLoading(true)
       setError(null)
       try {
