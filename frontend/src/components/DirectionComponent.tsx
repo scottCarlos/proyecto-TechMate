@@ -42,6 +42,7 @@ const DirectionComponent = ({ onAddressSelected }: DirectionComponentProps) => {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [deliveryOption, setDeliveryOption] = useState<DeliveryOption>('main');
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [pickupAddressId, setPickupAddressId] = useState<string | null>(null);
   const [showAddAddressForm, setShowAddAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState<NewAddress>(initialNewAddress);
 
@@ -112,6 +113,50 @@ const DirectionComponent = ({ onAddressSelected }: DirectionComponentProps) => {
 
     fetchAddresses();
   }, [token]);
+
+  useEffect(() => {
+    const ensurePickupAddress = async () => {
+      if (deliveryOption !== 'pickup') return;
+      if (!token) return;
+
+      try {
+        if (pickupAddressId) {
+          setSelectedAddress(pickupAddressId);
+          onAddressSelected(pickupAddressId);
+          return;
+        }
+
+        setIsLoading(true);
+
+        const randomNumber = Math.floor(100 + Math.random() * 900);
+        const pickupToSend = {
+          name: `Recojo en tienda #${Date.now()}`,
+          street: `Av. Principal ${randomNumber}`,
+          city: 'Lima',
+          state: 'Lima',
+          postal_code: '15001',
+          country: 'Perú',
+          is_default: false,
+          type: 'other' as const,
+        };
+
+        const created = await addAddress(token, pickupToSend);
+
+        setPickupAddressId(created.id);
+        setSelectedAddress(created.id);
+        onAddressSelected(created.id);
+
+        setAddresses((prev) => [...prev, created]);
+      } catch (err) {
+        console.error('Error creando dirección para recojo en tienda:', err);
+        message.error('No se pudo preparar la dirección para recojo en tienda');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void ensurePickupAddress();
+  }, [deliveryOption, token, pickupAddressId, onAddressSelected]);
 
   const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();

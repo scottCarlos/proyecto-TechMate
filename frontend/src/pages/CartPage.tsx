@@ -4,6 +4,29 @@ import { useNavigate } from 'react-router-dom'
 import { getMyCart, updateCartItem, removeFromCart, addToCart, type CartItem } from '../services/cart'
 import { getMyWishlist, removeFromWishlist, type WishlistItem } from '../services/wishlist'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+const getProductImagePath = (producto: unknown): string | null => {
+  if (!producto || typeof producto !== 'object') return null
+  const p = producto as Record<string, unknown>
+  const raw =
+    (p.imagen as string | null | undefined) ??
+    (p.imagen_url as string | null | undefined) ??
+    (p.imagenUrl as string | null | undefined) ??
+    (p.image_url as string | null | undefined)
+
+  return typeof raw === 'string' && raw.trim() ? raw : null
+}
+
+const resolveImageUrl = (url?: string | null) => {
+  if (!url) return null
+  if (/^https?:\/\//i.test(url)) return url
+
+  const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL
+  const path = url.startsWith('/') ? url : `/${url}`
+  return `${base}${path}`
+}
+
 interface StoredAuth {
   token: string
 }
@@ -168,13 +191,28 @@ const CartPage: FC = () => {
                   const price = Number(item.producto.precio) || 0
                   const lineTotal = price * item.cantidad
 
+                  const imageUrl = resolveImageUrl(getProductImagePath(item.producto))
+
                   return (
                     <div
                       key={item.id_carrito}
                       className="flex flex-col sm:flex-row items-center gap-4 bg-white dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-white/10"
                     >
-                      <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-                        {item.producto.nombre.charAt(0).toUpperCase()}
+                      <div className="w-24 h-24 rounded flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 overflow-hidden border border-gray-200 dark:border-gray-700">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={item.producto.nombre}
+                            className="w-full h-full object-contain p-1"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.onerror = null
+                              target.src = '/img/placeholder-product.png'
+                            }}
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined text-gray-400 text-2xl">image</span>
+                        )}
                       </div>
                       <div className="flex-1 text-center sm:text-left">
                         <h3 className="font-bold text-lg text-black dark:text-white">{item.producto.nombre}</h3>
@@ -295,21 +333,37 @@ const CartPage: FC = () => {
 
               {wishlist.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4 sm:mt-6">
-                  {wishlist.map((item) => (
-                    <div
-                      key={item.id_lista}
-                      className="bg-white dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-white/10 flex flex-col"
-                    >
-                      <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded mb-4 flex items-center justify-center text-sm text-gray-500 dark:text-gray-300">
-                        {item.producto.nombre.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 flex flex-col">
-                        <h3 className="font-bold text-lg text-black dark:text-white line-clamp-2">
-                          {item.producto.nombre}
-                        </h3>
-                        <p className="font-bold text-primary mt-1">
-                          S/ {Number(item.producto.precio || 0).toFixed(2)}
-                        </p>
+                  {wishlist.map((item) => {
+                    const imageUrl = resolveImageUrl(getProductImagePath(item.producto))
+
+                    return (
+                      <div
+                        key={item.id_lista}
+                        className="bg-white dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-white/10 flex flex-col"
+                      >
+                        <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded mb-4 flex items-center justify-center text-sm text-gray-500 dark:text-gray-300 overflow-hidden border border-gray-200 dark:border-gray-700">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={item.producto.nombre}
+                              className="w-full h-full object-contain p-1"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.onerror = null
+                                target.src = '/img/placeholder-product.png'
+                              }}
+                            />
+                          ) : (
+                            <span className="material-symbols-outlined text-gray-400 text-3xl">image</span>
+                          )}
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                          <h3 className="font-bold text-lg text-black dark:text-white line-clamp-2">
+                            {item.producto.nombre}
+                          </h3>
+                          <p className="font-bold text-primary mt-1">
+                            S/ {Number(item.producto.precio || 0).toFixed(2)}
+                          </p>
                         <div className="mt-4 flex gap-2 pt-4 border-t border-gray-200 dark:border-white/10">
                           <button
                             type="button"
@@ -329,7 +383,7 @@ const CartPage: FC = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>

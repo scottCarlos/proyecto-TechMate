@@ -533,8 +533,8 @@ export const getAllOrders = async (req, res) => {
 // Importar la función de actualización de stock
 import { updateProductStock } from './product.controller.js';
 
+// Actualizar estado de pedido (uso administrativo / agente)
 export const updateOrderStatus = async (req, res) => {
-  const client = await query.getClient(); // Obtener un cliente para la transacción
   try {
     const role = req.user?.rol;
     if (role !== 'Admin' && role !== 'Agente') {
@@ -554,37 +554,31 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: 'Estado de pedido inválido' });
     }
 
-    // Iniciar transacción
-    await client.query('BEGIN');
-
     // Obtener el estado actual del pedido
-    const currentOrder = await client.query(
-      'SELECT "estado" FROM "PEDIDOS" WHERE "id_pedido" = $1 FOR UPDATE',
-      [orderId]
+    const currentOrder = await query(
+      'SELECT "estado" FROM "PEDIDOS" WHERE "id_pedido" = $1',
+      [orderId],
     );
 
     if (currentOrder.rowCount === 0) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Pedido no encontrado' });
     }
 
     const currentStatus = currentOrder.rows[0].estado;
 
     // Actualizar el estado del pedido
-    await client.query(
+    await query(
       'UPDATE "PEDIDOS" SET "estado" = $1 WHERE "id_pedido" = $2',
-      [estado, orderId]
+      [estado, orderId],
     );
 
     // Si el estado cambia a "Entregado", disminuir el stock
     if (estado === 'Entregado' && currentStatus !== 'Entregado') {
-      // Obtener los ítems del pedido
-      const itemsResult = await client.query(
+      const itemsResult = await query(
         'SELECT "id_producto", "cantidad" FROM "DETALLE_PEDIDO" WHERE "id_pedido" = $1',
-        [orderId]
+        [orderId],
       );
 
-      // Actualizar el stock para cada producto
       for (const item of itemsResult.rows) {
         const success = await updateProductStock(item.id_producto, -item.cantidad);
         if (!success) {
@@ -594,13 +588,11 @@ export const updateOrderStatus = async (req, res) => {
     }
     // Si el estado cambia a "Cancelado" y el estado anterior era "Entregado", aumentar el stock
     else if (estado === 'Cancelado' && currentStatus === 'Entregado') {
-      // Obtener los ítems del pedido
-      const itemsResult = await client.query(
+      const itemsResult = await query(
         'SELECT "id_producto", "cantidad" FROM "DETALLE_PEDIDO" WHERE "id_pedido" = $1',
-        [orderId]
+        [orderId],
       );
 
-      // Actualizar el stock para cada producto
       for (const item of itemsResult.rows) {
         const success = await updateProductStock(item.id_producto, item.cantidad);
         if (!success) {
@@ -609,17 +601,10 @@ export const updateOrderStatus = async (req, res) => {
       }
     }
 
-    // Confirmar la transacción
-    await client.query('COMMIT');
     return res.json({ message: 'Estado de pedido actualizado correctamente' });
   } catch (error) {
-    // Revertir la transacción en caso de error
-    await client.query('ROLLBACK');
     console.error('Error al actualizar estado de pedido:', error);
     return res.status(500).json({ message: 'No se pudo actualizar el estado del pedido' });
-  } finally {
-    // Liberar el cliente de la conexión
-    client.release();
   }
 }
 

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middlewares/auth.js'
-import { getMyAddress, getMyAddresses, upsertMyAddress } from '../controllers/address.controller.js'
+import { getMyAddress, getMyAddresses, upsertMyAddress, setDefaultAddress } from '../controllers/address.controller.js'
 
 const router = Router()
 
@@ -12,5 +12,7 @@ router.get('/me', authMiddleware, getMyAddress)
 
 // Create or update an address
 router.post('/me', authMiddleware, upsertMyAddress)
+
+router.patch('/:id/set-default', authMiddleware, setDefaultAddress)
 
 export default router

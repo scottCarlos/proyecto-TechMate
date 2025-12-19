@@ -8,6 +8,33 @@ import { message } from 'antd'
 import 'material-symbols/outlined.css'
 import DirectionComponent from '../components/DirectionComponent'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE_URL = API_URL.replace(/\/api\/?$/, '')
+
+const getProductImagePath = (producto: unknown): string | null => {
+  if (!producto || typeof producto !== 'object') return null
+  const p = producto as Record<string, unknown>
+  const raw =
+    (p.imagen as string | null | undefined) ??
+    (p.imagen_principal as string | null | undefined) ??
+    (p.imagen_url as string | null | undefined) ??
+    (p.imagenUrl as string | null | undefined) ??
+    (p.image_url as string | null | undefined)
+
+  return typeof raw === 'string' && raw.trim() ? raw : null
+}
+
+const resolveImageUrl = (url?: string | null) => {
+  if (!url) return null
+  if (/^https?:\/\//i.test(url)) return url
+
+  const normalizedUrl = String(url).replace(/\/api\/uploads\//, '/uploads/')
+
+  const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+  const path = normalizedUrl.startsWith('/') ? normalizedUrl : `/${normalizedUrl}`
+  return `${base}${path}`
+}
+
 interface StoredAuth {
   token: string
 }
@@ -293,14 +320,15 @@ const CheckoutPage: FC<CheckoutPageProps> = () => {
           cantidad: item.cantidad,
           precio_unitario: item.producto.precio,
           nombre: item.producto.nombre,
-          imagen: item.producto.imagen
+          imagen: getProductImagePath(item.producto) ?? undefined
         }));
 
         // Map payment method to the expected format
-        const paymentMethodMap = {
+        const paymentMethodMap: Record<Exclude<PaymentMethod, null>, string> = {
           card: 'Tarjeta',
           plin: 'Transferencia',
-          yape: 'Transferencia'
+          yape: 'Transferencia',
+          paypal: 'PayPal',
         };
 
         // Create order in the database
@@ -309,7 +337,7 @@ const CheckoutPage: FC<CheckoutPageProps> = () => {
           subtotal,
           impuestos: taxes,
           total,
-          metodo_pago: paymentMethodMap[openPaymentMethod] || 'Transferencia',
+          metodo_pago: paymentMethodMap[openPaymentMethod as Exclude<PaymentMethod, null>] || 'Transferencia',
           items: orderItems,
           notas: ''
         });
@@ -753,15 +781,14 @@ const CheckoutPage: FC<CheckoutPageProps> = () => {
                   <div key={item.id_producto} className="flex justify-between items-center gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0 border border-gray-200 dark:border-gray-700">
-                        {item.producto?.imagen ? (
+                        {resolveImageUrl(getProductImagePath(item.producto)) ? (
                           <img 
-                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${item.producto.imagen}`} 
+                            src={resolveImageUrl(getProductImagePath(item.producto))!}
                             alt={item.producto.nombre}
                             className="w-full h-full object-contain p-1"
                             onError={(e) => {
-                              // If image fails to load, show a placeholder
                               const target = e.target as HTMLImageElement;
-                              target.onerror = null; // Prevent infinite loop
+                              target.onerror = null;
                               target.src = '/img/placeholder-product.png';
                             }}
                           />

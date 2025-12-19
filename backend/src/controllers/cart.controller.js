@@ -18,7 +18,14 @@ export const getMyCart = async (req, res) => {
     const queryText = `
       SELECT c."id_carrito", c."id_producto", c."cantidad", c."fecha_agregado",
              p."id_producto" AS id, p."nombre", p."descripcion", p."precio", 
-             p."stock", p."sku", p."marca"
+             p."stock", p."sku", p."marca",
+             (
+               SELECT img."url_imagen"
+               FROM "IMAGENES_PRODUCTO" img
+               WHERE img."id_producto" = p."id_producto"
+               ORDER BY img."es_principal" DESC, img."id_imagen" ASC
+               LIMIT 1
+             ) AS imagen
       FROM "CARRITO" c
       JOIN "PRODUCTOS" p ON p."id_producto" = c."id_producto"
       WHERE c."id_usuario" = $1
@@ -45,6 +52,7 @@ export const getMyCart = async (req, res) => {
         stock: row.stock,
         sku: row.sku,
         marca: row.marca,
+        imagen: row.imagen,
       },
     }))
 
